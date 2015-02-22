@@ -133,7 +133,7 @@ module Make (C: V1_LWT.CONSOLE) (N: V1_LWT.NETWORK) (F: V1_LWT.FLOW) = struct
       | n when n < 1024 ->
         stubborn_insert table frame ip (Random.int 65535)
       | n ->
-        match Nat_rewrite.make_entry table frame ip n with
+        match Nat_rewrite.make_nat_entry table frame ip n with
         | Ok t -> Some t
         | Unparseable ->
           None
@@ -161,7 +161,7 @@ module Make (C: V1_LWT.CONSOLE) (N: V1_LWT.NETWORK) (F: V1_LWT.FLOW) = struct
               (* add an entry as if our client had requested something from the
                  remote hosts sport, on its own dport *)
               match Nat_lookup.insert nat_table proto (internal_client, dport) (src, sport)
-                      (ip, dport) with
+                      (ip, dport) (ip, dport) with
               | None -> Lwt.return_unit
               | Some nat_table ->
                 match Nat_rewrite.translate nat_table direction frame with
@@ -203,14 +203,7 @@ module Make (C: V1_LWT.CONSOLE) (N: V1_LWT.NETWORK) (F: V1_LWT.FLOW) = struct
     { internal_client; external_ip; intercept_port }
 
   (* TODO: provide hooks for updates to/dump of this *)
-  let table ctx =
-    let open Nat_lookup in
-    match insert (empty ()) 6
-            ((V4 ctx.internal_client), ctx.intercept_port)
-            (Ipaddr.of_string_exn "192.168.3.1", 52966)
-            ((V4 ctx.external_ip), 9999) with
-    | None -> raise (Failure "Couldn't create hardcoded NAT table")
-    | Some t -> t
+  let table ctx = Nat_lookup.empty ()
 
   (* or_error brazenly stolen from netif-forward *)
   let or_error c name fn t =
